@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Widget SP45 - Narrow Dark Green</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --surface:   rgba(10, 31, 18, 0.75); 
+    --border:    rgba(255,255,255,0.15);
+    --text:      #d1e0d1;
+    --muted:     #8ca38c;
+    --accent:    #228b22; 
+    --accent2:   #1b5e20; 
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    display: flex;
+    justify-content: center; /* Centrowanie w poziomie */
+    align-items: center;     /* Centrowanie w pionie */
+  }
+
+  .widget-container {
+    /* ZMNIEJSZONA SZEROKOŚĆ */
+    width: 450px; 
+    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 10px;
+  }
+
+  .card {
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center; 
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
+
+  .main-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .label {
+    font-size: 14px;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+
+  .value {
+    font-family: 'DM Mono', monospace;
+    font-size: 64px; /* Nieco mniejszy, by pasował do węższej komórki */
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--accent);
+    text-shadow: 0 0 15px rgba(34, 139, 34, 0.3);
+  }
+
+  .footer-text {
+    font-size: 16px;
+    color: var(--text);
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 10px;
+    width: 100%;
+  }
+
+  .progress-box {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    border-radius: 12px;
+    padding: 15px;
+    border: 1px solid var(--border);
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .status-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent2);
+  }
+
+  .pulse { animation: blink 2s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 0.8; } 50% { opacity: 0.2; } }
+
+  .bar-bg {
+    height: 12px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transition: width 1s linear;
+  }
+</style>
+</head>
+<body>
+
+  <div class="widget-container">
+    <div class="card">
+      <div class="main-row">
+        <div class="label" id="lbl-a">Pozostało:</div> 
+        <div class="value" id="val-a">--:--</div>
+      </div>
+      <div class="footer-text">
+        <span id="emoji-a">🌲</span>
+        <span id="desc-a">Inicjalizacja...</span>
+      </div>
+    </div>
+
+    <div class="progress-box">
+      <div class="progress-header">
+        <div class="status-tag">
+          <div class="dot pulse" id="sdot"></div>
+          <span id="status-text">Status...</span>
+        </div>
+        <span id="pct-text" style="font-family: 'DM Mono'">0%</span>
+      </div>
+      <div class="bar-bg">
+        <div class="bar-fill" id="fill"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const SCHEDULE = [
+  { type:'lesson', name:'1. lekcja',      start:'08:00', end:'08:50' },
+  { type:'break',  name:'Przerwa',         start:'08:50', end:'09:00' },
+  { type:'lesson', name:'2. lekcja',      start:'09:00', end:'09:45' },
+  { type:'break',  name:'Przerwa',         start:'09:45', end:'09:55' },
+  { type:'lesson', name:'3. lekcja',      start:'09:55', end:'10:40' },
+  { type:'break',  name:'Przerwa (duża)', start:'10:40', end:'10:55' },
+  { type:'lesson', name:'4. lekcja',      start:'10:55', end:'11:40' },
+  { type:'break',  name:'Przerwa',         start:'11:40', end:'11:50' },
+  { type:'lesson', name:'5. lekcja',      start:'11:50', end:'12:35' },
+  { type:'break',  name:'Przerwa',         start:'12:35', end:'12:45' },
+  { type:'lesson', name:'6. lekcja',      start:'12:45', end:'13:30' },
+  { type:'break',  name:'Przerwa (duża)', start:'13:30', end:'13:50' },
+  { type:'lesson', name:'7. lekcja',      start:'13:50', end:'14:35' },
+  { type:'break',  name:'Przerwa',         start:'14:35', end:'14:45' },
+  { type:'lesson', name:'8. lekcja',      start:'14:45', end:'15:30' },
+  { type:'break',  name:'Przerwa',         start:'15:30', end:'15:40' },
+];
+
+function toSec(t) { const [h,m]=t.split(':').map(Number); return h*3600+m*60; }
+function fmt(s) {
+  if (s<=0) return '0:00';
+  const m = Math.floor(s/60);
+  const sec = s%60;
+  return m + ':' + String(sec).padStart(2,'0');
+}
+
+function update() {
+  const now = new Date();
+  const ns = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
+  let idx = SCHEDULE.findIndex(s => ns >= toSec(s.start) && ns < toSec(s.end));
+
+  const lblA = document.getElementById('lbl-a');
+  const emojiA = document.getElementById('emoji-a');
+
+  if (idx === -1) {
+    const nextIdx = SCHEDULE.findIndex(s => toSec(s.start) > ns);
+    if (nextIdx === -1) {
+      lblA.textContent = "Koniec zajęć";
+      document.getElementById('val-a').textContent = "--:--";
+      document.getElementById('status-text').textContent = "Po lekcjach";
+      document.getElementById('fill').style.width = "100%";
+    } else {
+      const wait = toSec(SCHEDULE[nextIdx].start) - ns;
+      lblA.textContent = "Do lekcji:";
+      document.getElementById('val-a').textContent = fmt(wait);
+      document.getElementById('status-text').textContent = "Czekanie na start";
+      document.getElementById('desc-a').textContent = "Start: " + SCHEDULE[nextIdx].start;
+    }
+    return;
+  }
+
+  const current = SCHEDULE[idx];
+  const remain = toSec(current.end) - ns;
+  const total = toSec(current.end) - toSec(current.start);
+  const pct = Math.floor(((total - remain) / total) * 100);
+
+  lblA.textContent = current.type === 'lesson' ? "Koniec lekcji za:" : "Koniec przerwy za:";
+  emojiA.textContent = current.type === 'lesson' ? "📚" : "☕";
+
+  document.getElementById('status-text').textContent = current.name;
+  document.getElementById('val-a').textContent = fmt(remain);
+  document.getElementById('desc-a').textContent = `${current.start} - ${current.end}`;
+  document.getElementById('fill').style.width = pct + "%";
+  document.getElementById('pct-text').textContent = pct + "%";
+}
+
+setInterval(update, 1000);
+update();
+</script>
+</body>
+</html>
