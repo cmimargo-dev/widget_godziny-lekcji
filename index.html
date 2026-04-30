@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Widget SP45 - Dynamiczne Napisy</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-glass:  rgba(10, 25, 15, 0.98);
+    --surface:   #1a2e22;
+    --border:    rgba(255,255,255,0.1);
+    --text:      #eaf5ea;
+    --muted:     #7da080;
+    --accent:    #2ecc71;
+    --accent2:   #a2f06f;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+  }
+
+  .scaler {
+    transform: scale(2);
+    transform-origin: top left;
+    width: 50%; 
+  }
+
+  .widget-container {
+    background: var(--bg-glass);
+    backdrop-filter: blur(15px);
+    border-bottom: 2px solid var(--accent);
+    width: 100%;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .vertical-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .card {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center; 
+    text-align: center;
+  }
+
+  .label {
+    font-size: 8px;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 2px;
+    font-weight: 700;
+  }
+
+  .value {
+    font-family: 'DM Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+  }
+
+  .footer-text {
+    font-size: 9px;
+    color: var(--text);
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .progress-box {
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    padding: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+
+  .status-tag {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+    color: var(--accent2);
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .pulse { animation: blink 1.5s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .bar-bg {
+    height: 6px;
+    background: #05100a;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 1s linear;
+  }
+</style>
+</head>
+<body>
+
+<div class="scaler">
+  <div class="widget-container">
+    <div class="vertical-stack">
+      <div class="card">
+        <!-- Ten napis zmienia się dynamicznie przez JS -->
+        <div class="label" id="lbl-a">Pozostało:</div> 
+        <div class="value" id="val-a">--:--</div>
+        <div class="footer-text">
+          <span id="emoji-a">🟢</span>
+          <span id="desc-a">Inicjalizacja...</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label" id="lbl-b">Następnie:</div>
+        <div class="value" id="val-b" style="color: var(--accent2); font-size: 22px;">--:--</div>
+        <div class="footer-text" style="color: var(--muted)">
+          <span id="emoji-b">🕒</span>
+          <span id="desc-b">Czekaj...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-box">
+      <div class="progress-header">
+        <div class="status-tag">
+          <div class="dot pulse" id="sdot"></div>
+          <span id="status-text">Status...</span>
+        </div>
+        <span id="pct-text" style="font-family: 'DM Mono'">0%</span>
+      </div>
+      <div class="bar-bg">
+        <div class="bar-fill" id="fill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCHEDULE = [
+  { type:'lesson', name:'1. lekcja',      start:'08:00', end:'08:50' },
+  { type:'break',  name:'Przerwa',         start:'08:50', end:'09:00' },
+  { type:'lesson', name:'2. lekcja',      start:'09:00', end:'09:45' },
+  { type:'break',  name:'Przerwa',         start:'09:45', end:'09:55' },
+  { type:'lesson', name:'3. lekcja',      start:'09:55', end:'10:40' },
+  { type:'break',  name:'Przerwa (duża)', start:'10:40', end:'10:55' },
+  { type:'lesson', name:'4. lekcja',      start:'10:55', end:'11:40' },
+  { type:'break',  name:'Przerwa',         start:'11:40', end:'11:50' },
+  { type:'lesson', name:'5. lekcja',      start:'11:50', end:'12:35' },
+  { type:'break',  name:'Przerwa',         start:'12:35', end:'12:45' },
+  { type:'lesson', name:'6. lekcja',      start:'12:45', end:'13:30' },
+  { type:'break',  name:'Przerwa (duża)', start:'13:30', end:'13:50' },
+  { type:'lesson', name:'7. lekcja',      start:'13:50', end:'14:35' },
+  { type:'break',  name:'Przerwa',         start:'14:35', end:'14:45' },
+  { type:'lesson', name:'8. lekcja',      start:'14:45', end:'15:30' },
+  { type:'break',  name:'Przerwa',         start:'15:30', end:'15:40' },
+];
+
+function toSec(t) { const [h,m]=t.split(':').map(Number); return h*3600+m*60; }
+function fmt(s) {
+  if (s<=0) return '0:00';
+  const m = Math.floor(s/60);
+  const sec = s%60;
+  return m + ':' + String(sec).padStart(2,'0');
+}
+
+function update() {
+  const now = new Date();
+  const ns = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
+  let idx = SCHEDULE.findIndex(s => ns >= toSec(s.start) && ns < toSec(s.end));
+
+  const lblA = document.getElementById('lbl-a');
+  const emojiA = document.getElementById('emoji-a');
+
+  if (idx === -1) {
+    const nextIdx = SCHEDULE.findIndex(s => toSec(s.start) > ns);
+    if (nextIdx === -1) {
+      lblA.textContent = "Status:";
+      document.getElementById('val-a').textContent = "KONIEC";
+      document.getElementById('status-text').textContent = "Po lekcjach";
+      document.getElementById('fill').style.width = "100%";
+    } else {
+      const wait = toSec(SCHEDULE[nextIdx].start) - ns;
+      lblA.textContent = "Do lekcji:";
+      document.getElementById('val-a').textContent = fmt(wait);
+      document.getElementById('status-text').textContent = "Przed lekcjami";
+      document.getElementById('desc-a').textContent = "Start o " + SCHEDULE[nextIdx].start;
+    }
+    return;
+  }
+
+  const current = SCHEDULE[idx];
+  const remain = toSec(current.end) - ns;
+  const total = toSec(current.end) - toSec(current.start);
+  const pct = Math.floor(((total - remain) / total) * 100);
+
+  // DYNAMICZNE NAPISY[cite: 1]
+  if (current.type === 'lesson') {
+    lblA.textContent = "Do końca lekcji:";
+    emojiA.textContent = "📚";
+  } else {
+    lblA.textContent = "Do końca przerwy:";
+    emojiA.textContent = "☕";
+  }
+
+  document.getElementById('status-text').textContent = current.name;
+  document.getElementById('val-a').textContent = fmt(remain);
+  document.getElementById('desc-a').textContent = `${current.start}-${current.end}`;
+  document.getElementById('fill').style.width = pct + "%";
+  document.getElementById('pct-text').textContent = pct + "%";
+
+  const next = SCHEDULE[idx + 1];
+  if (next) {
+    const toNext = toSec(next.start) - ns;
+    document.getElementById('val-b').textContent = fmt(toNext);
+    document.getElementById('desc-b').textContent = (next.type === 'lesson' ? 'Lekcja: ' : 'Przerwa: ') + next.start;
+  }
+}
+
+setInterval(update, 1000);
+update();
+</script>
+</body>
+</html>
